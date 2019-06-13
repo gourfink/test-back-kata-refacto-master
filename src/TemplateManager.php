@@ -1,34 +1,68 @@
 <?php
 
+
+/*
+*   Replace placeholders by text
+*/
+
 class TemplateManager
 {
+
+    protected $application_context;
+    protected $destination_instance;
+    protected $quote_instance;
+    protected $site_instance;
+    protected $quote;
+    protected $user;
+    protected $data;
+    protected $text;
+
+    public function __construct(){
+
+        $this->application_context = ApplicationContext::getInstance();
+        $this->destination_instance = DestinationRepository::getInstance();
+        $this->quote_instance = QuoteRepository::getInstance();
+        $this->site_instance = SiteRepository::getInstance();
+    }
+
+
+    /*
+    *   $tpl  : object
+    *   $data : array
+    *
+    *   return string
+    *
+    */
     public function getTemplateComputed(Template $tpl, array $data)
     {
+
         if (!$tpl) {
             throw new \RuntimeException('no tpl given');
         }
 
         $replaced = clone($tpl);
-        $replaced->subject = $this->computeText($replaced->subject, $data);
-        $replaced->content = $this->computeText($replaced->content, $data);
+        $this->data = $data;
+        $this->getQuote();
+        $this->getUser();
+        $replaced->subject = $this->computeText($replaced->subject);
+        $replaced->content = $this->computeText($replaced->content);
 
         return $replaced;
     }
 
-    private function computeText($text, array $data)
+
+    /*
+    *   $text : string
+    *
+    *   return string
+    */
+    private function computeText($text)
     {
-        $APPLICATION_CONTEXT = ApplicationContext::getInstance();
 
-        $quote = (isset($data['quote']) and $data['quote'] instanceof Quote) ? $data['quote'] : null;
-
-        if ($quote)
+        if ($this->quote)
         {
-            $_quoteFromRepository = QuoteRepository::getInstance()->getById($quote->id);
-            $usefulObject = SiteRepository::getInstance()->getById($quote->siteId);
-            $destinationOfQuote = DestinationRepository::getInstance()->getById($quote->destinationId);
-
             if(strpos($text, '[quote:destination_link]') !== false){
-                $destination = DestinationRepository::getInstance()->getById($quote->destinationId);
+                $destination = $this->destination_instance->getById($this->quote->destinationId);
             }
 
             $containsSummaryHtml = strpos($text, '[quote:summary_html]');
@@ -36,37 +70,65 @@ class TemplateManager
 
             if ($containsSummaryHtml !== false || $containsSummary !== false) {
                 if ($containsSummaryHtml !== false) {
-                    $text = str_replace(
-                        '[quote:summary_html]',
-                        Quote::renderHtml($_quoteFromRepository),
-                        $text
-                    );
+                    $text = $this->getText($text, '[quote:summary_html]');
                 }
                 if ($containsSummary !== false) {
-                    $text = str_replace(
-                        '[quote:summary]',
-                        Quote::renderText($_quoteFromRepository),
-                        $text
-                    );
+                    $text = $this->getText($text, '[quote:summary]');
                 }
             }
 
-            (strpos($text, '[quote:destination_name]') !== false) and $text = str_replace('[quote:destination_name]',$destinationOfQuote->countryName,$text);
+            (strpos($text, '[quote:destination_name]') !== false) and $text = str_replace('[quote:destination_name]',$this->destination_instance->getById($this->quote->destinationId)->countryName,$text);
         }
 
-        if (isset($destination))
-            $text = str_replace('[quote:destination_link]', $usefulObject->url . '/' . $destination->countryName . '/quote/' . $_quoteFromRepository->id, $text);
-        else
+        if (isset($destination)):
+            $text = str_replace('[quote:destination_link]', $this->site_instance->getById($this->quote->siteId)->url . '/' . $destination->countryName . '/quote/' . $this->quote_instance->getById($this->quote->id)->id, $text);
+        else:
             $text = str_replace('[quote:destination_link]', '', $text);
+        endif;
 
         /*
          * USER
          * [user:*]
          */
-        $_user  = (isset($data['user'])  and ($data['user']  instanceof User))  ? $data['user']  : $APPLICATION_CONTEXT->getCurrentUser();
-        if($_user) {
-            (strpos($text, '[user:first_name]') !== false) and $text = str_replace('[user:first_name]'       , ucfirst(mb_strtolower($_user->firstname)), $text);
+        if($this->user) {
+            (strpos($text, '[user:first_name]') !== false) and $text = str_replace('[user:first_name]', ucfirst(mb_strtolower($this->user->firstname)), $text);
         }
+
+        return $text;
+    }
+
+    /*
+    *   populate $this->quote with $this->data['quote']
+    */
+    protected function getQuote()
+    {
+
+        $this->quote = (isset($this->data['quote']) and $this->data['quote'] instanceof Quote) ? $this->data['quote'] : null;
+
+        return $this;
+    }
+
+    /*
+    *   populate $this->user with $this->data['user']
+    */
+    protected function getUser()
+    {
+
+        $this->user  = (isset($this->data['user'])  and ($this->data['user']  instanceof User))  ? $this->data['user']  : $this->application_context->getCurrentUser();
+
+        return $this;
+    }
+
+    /*
+    *   $text : string
+    *   $quote_type : string
+    *
+    *   return string
+    */
+    public function getText($text, $quote_type)
+    {
+
+        $text = str_replace( $quote_type, Quote::renderHtml($this->quote_instance->getById($this->quote->id)), $text );
 
         return $text;
     }
