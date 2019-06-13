@@ -17,7 +17,8 @@ class TemplateManager
     protected $data;
     protected $text;
 
-    public function __construct(){
+    public function __construct()
+    {
 
         $this->application_context = ApplicationContext::getInstance();
         $this->destination_instance = DestinationRepository::getInstance();
@@ -36,7 +37,7 @@ class TemplateManager
     public function getTemplateComputed(Template $tpl, array $data)
     {
 
-        if (!$tpl) {
+        if (!$tpl){
             throw new \RuntimeException('no tpl given');
         }
 
@@ -44,6 +45,7 @@ class TemplateManager
         $this->data = $data;
         $this->getQuote();
         $this->getUser();
+
         $replaced->subject = $this->computeText($replaced->subject);
         $replaced->content = $this->computeText($replaced->content);
 
@@ -113,10 +115,10 @@ class TemplateManager
     {
         if( isset($this->data['quote']) ){
             $this->quote = ($this->data['quote'] instanceof Quote) ? $this->data['quote'] : null;
-    }
+        }
 
-    return $this;
-}
+        return $this;
+    }
 
     /*
     *   populate $this->user with $this->data['user']
