@@ -40,3 +40,7 @@ What do we expect from you:
  - a file / message / email explaining your process and principles you've followed
 
 **Good luck!**
+
+
+## Functional test :
+launch ```vendor/bin/phpunit```
